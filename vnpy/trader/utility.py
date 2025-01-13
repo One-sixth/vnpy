@@ -65,8 +65,19 @@ def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
     return home_path, temp_path
 
 
-TRADER_DIR, TEMP_DIR = _get_trader_dir(".vntrader")
-sys.path.append(str(TRADER_DIR))
+# TRADER_DIR, TEMP_DIR = _get_trader_dir(".vntrader")
+# sys.path.append(str(TRADER_DIR))
+TRADER_DIR, TEMP_DIR = None, None
+
+def set_trader_dir(trade_dir: str='.', temp_name: str='.vntrader'):
+    global TRADER_DIR, TEMP_DIR
+    TRADER_DIR = Path(trade_dir).absolute()
+    TEMP_DIR = TRADER_DIR.joinpath(temp_name)
+    if not TEMP_DIR.exists():
+        TEMP_DIR.mkdir()
+
+
+set_trader_dir()
 
 
 def get_file_path(filename: str) -> Path:

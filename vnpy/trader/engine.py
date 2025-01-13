@@ -42,7 +42,7 @@ from .object import (
     Exchange
 )
 from .setting import SETTINGS
-from .utility import get_folder_path, TRADER_DIR
+from .utility import get_folder_path, TRADER_DIR, set_trader_dir
 from .converter import OffsetConverter
 from .locale import _
 
@@ -52,7 +52,7 @@ class MainEngine:
     Acts as the core of the trading platform.
     """
 
-    def __init__(self, event_engine: EventEngine = None) -> None:
+    def __init__(self, event_engine: EventEngine = None, trader_dir='.', temp_dir='.vntrader') -> None:
         """"""
         if event_engine:
             self.event_engine: EventEngine = event_engine
@@ -65,6 +65,7 @@ class MainEngine:
         self.apps: Dict[str, BaseApp] = {}
         self.exchanges: List[Exchange] = []
 
+        set_trader_dir(trader_dir, temp_dir)
         os.chdir(TRADER_DIR)    # Change working directory
         self.init_engines()     # Initialize function engines
 

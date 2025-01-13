@@ -241,6 +241,19 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog: ConnectDialog = ConnectDialog(self.main_engine, gateway_name)
         dialog.exec()
 
+    def close_direct(self) -> None:
+        """
+        Call main engine close function before exit.
+        """
+        for widget in self.widgets.values():
+            widget.close()
+
+        for monitor in self.monitors.values():
+            monitor.save_setting()
+
+        self.save_window_setting("custom")
+        self.main_engine.close()
+
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """
         Call main engine close function before exit.
@@ -254,15 +267,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
-            for widget in self.widgets.values():
-                widget.close()
-
-            for monitor in self.monitors.values():
-                monitor.save_setting()
-
-            self.save_window_setting("custom")
-
-            self.main_engine.close()
+            self.close_direct()
 
             event.accept()
         else:
