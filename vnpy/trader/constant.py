@@ -156,3 +156,15 @@ class Interval(Enum):
     DAILY = "d"
     WEEKLY = "w"
     TICK = "tick"
+
+
+class Dividend(Enum):
+    """
+    复权类型
+    """
+    NONE = _("除权")
+    FRONT_RATIO = _("等比前复权")
+    BACK_RATIO = _("等比后复权")
+    # 不支持下面两个
+    # FRONT = _("等差前复权")
+    # BACK = _("等差后复权")

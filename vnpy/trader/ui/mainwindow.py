@@ -9,7 +9,7 @@ from importlib import import_module
 from typing import Callable, Dict, List, Tuple
 
 import vnpy
-from vnpy.event import EventEngine
+from ...event import EventEngine
 
 from .qt import QtCore, QtGui, QtWidgets
 from .widget import (
@@ -27,6 +27,8 @@ from .widget import (
     AboutDialog,
     GlobalDialog
 )
+from ..constant import Exchange
+from ..object import SubscribeRequest, ContractData
 from ..engine import MainEngine, BaseApp
 from ..utility import get_icon_path, TRADER_DIR
 from ..locale import _
@@ -77,16 +79,25 @@ class MainWindow(QtWidgets.QMainWindow):
             TradeMonitor, _("成交"), QtCore.Qt.DockWidgetArea.RightDockWidgetArea
         )
         log_widget, log_dock = self.create_dock(
-            LogMonitor, _("日志"), QtCore.Qt.DockWidgetArea.BottomDockWidgetArea
+            LogMonitor, _("日志"), QtCore.Qt.DockWidgetArea.RightDockWidgetArea
+            # LogMonitor, _("日志"), QtCore.Qt.DockWidgetArea.BottomDockWidgetArea
         )
         account_widget, account_dock = self.create_dock(
-            AccountMonitor, _("资金"), QtCore.Qt.DockWidgetArea.BottomDockWidgetArea
+            AccountMonitor, _("资金"), QtCore.Qt.DockWidgetArea.RightDockWidgetArea
+            # AccountMonitor, _("资金"), QtCore.Qt.DockWidgetArea.BottomDockWidgetArea
         )
         position_widget, position_dock = self.create_dock(
-            PositionMonitor, _("持仓"), QtCore.Qt.DockWidgetArea.BottomDockWidgetArea
+            PositionMonitor, _("持仓"), QtCore.Qt.DockWidgetArea.RightDockWidgetArea
+            # PositionMonitor, _("持仓"), QtCore.Qt.DockWidgetArea.BottomDockWidgetArea
         )
 
+        self.splitDockWidget(tick_dock, log_dock, QtCore.Qt.Orientation.Horizontal)
+        self.splitDockWidget(active_dock, trade_dock, QtCore.Qt.Orientation.Horizontal)
         self.tabifyDockWidget(active_dock, order_dock)
+        # self.tabifyDockWidget(log_dock, account_dock)
+        # self.tabifyDockWidget(log_dock, position_dock)
+        self.splitDockWidget(account_dock, position_dock, QtCore.Qt.Orientation.Horizontal)
+        self.setDockNestingEnabled(True)
 
         self.save_window_setting("default")
 
@@ -131,6 +142,17 @@ class MainWindow(QtWidgets.QMainWindow):
             func: Callable = partial(self.open_widget, widget_class, app.app_name)
 
             self.add_action(app_menu, app.display_name, app.icon_name, func, True)
+
+        # 订阅菜单
+        sub_menu: QtWidgets.QMenu = bar.addMenu(_("订阅"))
+        self.add_action(
+            sub_menu,
+            _("订阅合约"),
+            get_icon_path(__file__, "subscribe.png"),
+            self.manual_subscribe,
+            True
+        )
+        #
 
         # Global setting editor
         action: QtGui.QAction = QtGui.QAction(_("配置"), self)
@@ -330,3 +352,42 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         dialog: GlobalDialog = GlobalDialog()
         dialog.exec()
+
+    def manual_subscribe(self) -> None:
+        """
+        手动订阅合约
+        """
+        dialog: QtWidgets.QDialog = QtWidgets.QDialog()
+
+        layout = QtWidgets.QFormLayout()
+
+        code_textbox = QtWidgets.QLineEdit()
+        exchg_textbox = QtWidgets.QComboBox()
+        exchg_textbox.addItems([a.value for a in Exchange])
+
+        ok_button = QtWidgets.QPushButton(text=_('确定'))
+        cancel_button = QtWidgets.QPushButton(text=_('取消'))
+        ok_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.close)
+
+        layout.setSpacing(5)
+        layout.addRow(_('代号'), code_textbox)
+        layout.addRow(_('交易所'), exchg_textbox)
+        layout.addRow(cancel_button, ok_button)
+        dialog.setLayout(layout)
+
+        ok_button.setDefault(True)
+
+        result = dialog.exec()
+        if result == dialog.DialogCode.Accepted:
+            code = code_textbox.text()
+            exchg = exchg_textbox.currentText()
+            exchg = Exchange(exchg)
+            req = SubscribeRequest(code, exchg)
+            contract: ContractData = self.main_engine.get_contract(req.vt_symbol)
+
+            if contract:
+                self.main_engine.subscribe(req, contract.gateway_name)
+
+            else:
+                self.main_engine.write_log(_('订阅失败，未知合约'), 'MainEngine')

@@ -24,6 +24,7 @@ from .event import (
     EVENT_QUOTE
 )
 from .gateway import BaseGateway
+from .datafeed import BaseDatafeed, get_datafeed
 from .object import (
     CancelRequest,
     LogData,
@@ -241,6 +242,9 @@ class MainEngine:
 
         for gateway in self.gateways.values():
             gateway.close()
+
+        datafeed: BaseDatafeed = get_datafeed()
+        datafeed.close()
 
 
 class BaseEngine(ABC):

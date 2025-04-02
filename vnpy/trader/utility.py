@@ -18,6 +18,10 @@ from .object import BarData, TickData
 from .constant import Exchange, Interval
 from .locale import _
 
+# 复权计算工具
+from ._dividend_tool import make_front_back_dr, make_timetags_back_dr
+
+
 if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo, available_timezones              # noqa
 else:

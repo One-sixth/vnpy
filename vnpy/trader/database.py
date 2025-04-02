@@ -5,8 +5,8 @@ from typing import List
 from dataclasses import dataclass
 from importlib import import_module
 
-from .constant import Interval, Exchange
-from .object import BarData, TickData
+from .constant import Interval, Exchange, Dividend
+from .object import BarData, TickData, DividendData
 from .setting import SETTINGS
 from .utility import ZoneInfo
 from .locale import _
@@ -50,6 +50,18 @@ class TickOverview:
     end: datetime = None
 
 
+@dataclass
+class DividendOverview:
+    """
+    Overview of dividend data stored in database.
+    """
+    symbol: str = ""
+    exchange: Exchange = None
+    count: int = 0
+    start: datetime = None
+    end: datetime = None
+
+
 class BaseDatabase(ABC):
     """
     Abstract database class for connecting to different database.
@@ -76,7 +88,8 @@ class BaseDatabase(ABC):
         exchange: Exchange,
         interval: Interval,
         start: datetime,
-        end: datetime
+        end: datetime,
+        dividend: Dividend=Dividend.NONE,
     ) -> List[BarData]:
         """
         Load bar data from database.
@@ -89,7 +102,8 @@ class BaseDatabase(ABC):
         symbol: str,
         exchange: Exchange,
         start: datetime,
-        end: datetime
+        end: datetime,
+        dividend: Dividend=Dividend.NONE,
     ) -> List[TickData]:
         """
         Load tick data from database.
@@ -130,6 +144,48 @@ class BaseDatabase(ABC):
     def get_tick_overview(self) -> List[TickOverview]:
         """
         Return tick data avaible in database.
+        """
+        pass
+
+    @abstractmethod
+    def save_dividend_data(self, drs: list[DividendData]) -> bool:
+        """
+        保存除权数据
+        """
+        pass
+
+    @abstractmethod
+    def load_dividend_data(
+        self,
+        symbol: str,
+        exchange: Exchange,
+        start: datetime,
+        end: datetime
+    ) -> list[DividendData]:
+        """
+        获得除权数据
+        """
+        pass
+
+    @abstractmethod
+    def get_dividend_overview(
+        self,
+        symbol: str=None,
+        exchange: Exchange=None,
+    ) -> list[DividendOverview]:
+        """
+        获取除权汇总信息
+        """
+        pass
+
+    @abstractmethod
+    def delete_dividend_data(
+        self,
+        symbol: str,
+        exchange: Exchange
+    ) -> int:
+        """
+        删除除权数据
         """
         pass
 

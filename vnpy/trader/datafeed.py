@@ -3,7 +3,7 @@ from types import ModuleType
 from typing import Optional, List, Callable
 from importlib import import_module
 
-from .object import HistoryRequest, TickData, BarData
+from .object import HistoryRequest, TickData, BarData, DividendData
 from .setting import SETTINGS
 from .locale import _
 
@@ -30,6 +30,19 @@ class BaseDatafeed(ABC):
         Query history tick data.
         """
         output(_("查询Tick数据失败：没有正确配置数据服务"))
+
+    def query_dividend_history(self, req: HistoryRequest, output: Callable = print) -> Optional[List[DividendData]]:
+        """
+        Query history dividend data.
+        """
+        output(_("查询除权数据失败：没有正确配置数据服务"))
+
+    def close(self):
+        '''
+        结束和清理
+        :return:
+        '''
+        pass
 
 
 datafeed: BaseDatafeed = None

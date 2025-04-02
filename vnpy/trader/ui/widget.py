@@ -34,7 +34,7 @@ from ..object import (
     QuoteData,
     TickData
 )
-from ..utility import load_json, save_json, get_digits, ZoneInfo
+from ..utility import load_json, save_json, get_digits, ZoneInfo, generate_vt_symbol
 from ..setting import SETTING_FILENAME, SETTINGS
 from ..locale import _
 
@@ -44,6 +44,7 @@ COLOR_SHORT = QtGui.QColor("green")
 COLOR_BID = QtGui.QColor(255, 174, 201)
 COLOR_ASK = QtGui.QColor(160, 255, 160)
 COLOR_BLACK = QtGui.QColor("black")
+COLOR_WHITE = QtGui.QColor("white")
 
 
 class BaseCell(QtWidgets.QTableWidgetItem):
@@ -149,10 +150,17 @@ class PnlCell(BaseCell):
         """
         super().set_content(content, data)
 
-        if str(content).startswith("-"):
+        try:
+            num = float(content)
+        except Exception:
+            return
+
+        if num > 0:
+            self.setForeground(COLOR_LONG)
+        elif num < 0:
             self.setForeground(COLOR_SHORT)
         else:
-            self.setForeground(COLOR_LONG)
+            self.setForeground(COLOR_WHITE)
 
 
 class TimeCell(BaseCell):
@@ -512,6 +520,7 @@ class PositionMonitor(BaseMonitor):
     headers: dict = {
         "symbol": {"display": _("代码"), "cell": BaseCell, "update": False},
         "exchange": {"display": _("交易所"), "cell": EnumCell, "update": False},
+        "name": {"display": _("名称"), "cell": BaseCell, "update": False},
         "direction": {"display": _("方向"), "cell": DirectionCell, "update": False},
         "volume": {"display": _("数量"), "cell": BaseCell, "update": True},
         "yd_volume": {"display": _("昨仓"), "cell": BaseCell, "update": True},
@@ -520,6 +529,16 @@ class PositionMonitor(BaseMonitor):
         "pnl": {"display": _("盈亏"), "cell": PnlCell, "update": True},
         "gateway_name": {"display": _("接口"), "cell": BaseCell, "update": False},
     }
+
+    def process_event(self, event: Event) -> None:
+        # 持仓数据中，增加name字段，从而支持显示标的名称
+        data: PositionData = event.data
+        key: str = data.__getattribute__(self.data_key)
+        if key not in self.cells:
+            # 仅在首次标的持仓时，才增加名字字段，后面不再需要，因为 update 是 False，代表只h会更新一次
+            contract = self.main_engine.get_contract(generate_vt_symbol(data.symbol, data.exchange))
+            data.name = contract.name if contract else ''
+        super().process_event(event)
 
 
 class AccountMonitor(BaseMonitor):
@@ -670,7 +689,8 @@ class ConnectDialog(QtWidgets.QDialog):
         self.accept()
 
 
-class TradingWidget(QtWidgets.QWidget):
+# class TradingWidget(QtWidgets.QWidget):
+class TradingWidget(QtWidgets.QScrollArea):
     """
     General manual trading widget.
     """
@@ -692,7 +712,7 @@ class TradingWidget(QtWidgets.QWidget):
 
     def init_ui(self) -> None:
         """"""
-        self.setFixedWidth(300)
+        # self.setFixedWidth(300)
 
         # Trading function area
         exchanges: List[Exchange] = self.main_engine.get_all_exchanges()
@@ -763,6 +783,7 @@ class TradingWidget(QtWidgets.QWidget):
         # Market depth display area
         bid_color: str = "rgb(255,174,201)"
         ask_color: str = "rgb(160,255,160)"
+        white_color: str = "rgb(255,255,255)"
 
         self.bp1_label: QtWidgets.QLabel = self.create_label(bid_color)
         self.bp2_label: QtWidgets.QLabel = self.create_label(bid_color)
@@ -770,16 +791,11 @@ class TradingWidget(QtWidgets.QWidget):
         self.bp4_label: QtWidgets.QLabel = self.create_label(bid_color)
         self.bp5_label: QtWidgets.QLabel = self.create_label(bid_color)
 
-        self.bv1_label: QtWidgets.QLabel = self.create_label(
-            bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.bv2_label: QtWidgets.QLabel = self.create_label(
-            bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.bv3_label: QtWidgets.QLabel = self.create_label(
-            bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.bv4_label: QtWidgets.QLabel = self.create_label(
-            bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.bv5_label: QtWidgets.QLabel = self.create_label(
-            bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.bv1_label: QtWidgets.QLabel = self.create_label(bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.bv2_label: QtWidgets.QLabel = self.create_label(bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.bv3_label: QtWidgets.QLabel = self.create_label(bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.bv4_label: QtWidgets.QLabel = self.create_label(bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.bv5_label: QtWidgets.QLabel = self.create_label(bid_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
         self.ap1_label: QtWidgets.QLabel = self.create_label(ask_color)
         self.ap2_label: QtWidgets.QLabel = self.create_label(ask_color)
@@ -787,43 +803,83 @@ class TradingWidget(QtWidgets.QWidget):
         self.ap4_label: QtWidgets.QLabel = self.create_label(ask_color)
         self.ap5_label: QtWidgets.QLabel = self.create_label(ask_color)
 
-        self.av1_label: QtWidgets.QLabel = self.create_label(
-            ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.av2_label: QtWidgets.QLabel = self.create_label(
-            ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.av3_label: QtWidgets.QLabel = self.create_label(
-            ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.av4_label: QtWidgets.QLabel = self.create_label(
-            ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.av5_label: QtWidgets.QLabel = self.create_label(
-            ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.av1_label: QtWidgets.QLabel = self.create_label(ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.av2_label: QtWidgets.QLabel = self.create_label(ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.av3_label: QtWidgets.QLabel = self.create_label(ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.av4_label: QtWidgets.QLabel = self.create_label(ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.av5_label: QtWidgets.QLabel = self.create_label(ask_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
-        self.lp_label: QtWidgets.QLabel = self.create_label()
-        self.return_label: QtWidgets.QLabel = self.create_label(alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.lp_label: QtWidgets.QLabel = self.create_label(white_color)
+        self.return_label: QtWidgets.QLabel = self.create_label(white_color, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
-        form: QtWidgets.QFormLayout = QtWidgets.QFormLayout()
-        form.addRow(self.ap5_label, self.av5_label)
-        form.addRow(self.ap4_label, self.av4_label)
-        form.addRow(self.ap3_label, self.av3_label)
-        form.addRow(self.ap2_label, self.av2_label)
-        form.addRow(self.ap1_label, self.av1_label)
-        form.addRow(self.lp_label, self.return_label)
-        form.addRow(self.bp1_label, self.bv1_label)
-        form.addRow(self.bp2_label, self.bv2_label)
-        form.addRow(self.bp3_label, self.bv3_label)
-        form.addRow(self.bp4_label, self.bv4_label)
-        form.addRow(self.bp5_label, self.bv5_label)
+        # form: QtWidgets.QFormLayout = QtWidgets.QFormLayout()
+        # form.addRow(self.ap5_label, self.av5_label)
+        # form.addRow(self.ap4_label, self.av4_label)
+        # form.addRow(self.ap3_label, self.av3_label)
+        # form.addRow(self.ap2_label, self.av2_label)
+        # form.addRow(self.ap1_label, self.av1_label)
+        # form.addRow(self.lp_label, self.return_label)
+        # form.addRow(self.bp1_label, self.bv1_label)
+        # form.addRow(self.bp2_label, self.bv2_label)
+        # form.addRow(self.bp3_label, self.bv3_label)
+        # form.addRow(self.bp4_label, self.bv4_label)
+        # form.addRow(self.bp5_label, self.bv5_label)
+        # 改为Grid，增加名称标签
+        form: QtWidgets.QFormLayout = QtWidgets.QGridLayout()
+        quote_form = [
+            [_('卖5'), self.ap5_label, self.av5_label],
+            [_('卖4'), self.ap4_label, self.av4_label],
+            [_('卖3'), self.ap3_label, self.av3_label],
+            [_('卖2'), self.ap2_label, self.av2_label],
+            [_('卖1'), self.ap1_label, self.av1_label],
+            [_('最新|涨幅'), self.lp_label, self.return_label],
+            [_('买1'), self.bp1_label, self.bv1_label],
+            [_('买2'), self.bp2_label, self.bv2_label],
+            [_('买3'), self.bp3_label, self.bv3_label],
+            [_('买4'), self.bp4_label, self.bv4_label],
+            [_('买5'), self.bp5_label, self.bv5_label],
+        ]
+        for row_i, row in enumerate(quote_form):
+            if row_i < 5:
+                color = ask_color
+            elif row_i > 5:
+                color = bid_color
+            else:
+                color = white_color
+            form.addWidget(self.create_label(color, text=row[0]), row_i, 0, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+            form.addWidget(row[1], row_i, 1, 1, 1)
+            form.addWidget(row[2], row_i, 2, 1, 1)
 
-        # Overall layout
+        # 关闭横向滚动条
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # 创建滚动条区域内部窗口
+        scroll_widget = QtWidgets.QWidget()
+        scroll_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Expanding)
+        # 设定该窗口宽度固定为200
+        scroll_widget.setFixedWidth(230)
+        self.setFixedWidth(scroll_widget.width())
+        # 设定布局
         vbox: QtWidgets.QVBoxLayout = QtWidgets.QVBoxLayout()
         vbox.addLayout(grid)
         vbox.addLayout(form)
-        self.setLayout(vbox)
+        scroll_widget.setLayout(vbox)
+        self.setWidget(scroll_widget)
+
+        # pad_layout = QtWidgets.QVBoxLayout()
+        # pad_layout.addWidget(scroll_area)
+        # self.setLayout(pad_layout)
+        # Overall layout
+        # vbox: QtWidgets.QVBoxLayout = QtWidgets.QVBoxLayout()
+        # vbox.addLayout(grid)
+        # vbox.addLayout(form)
+        # vbox.addStretch(1)
+        # self.setLayout(vbox)
 
     def create_label(
         self,
         color: str = "",
-        alignment: int = QtCore.Qt.AlignmentFlag.AlignLeft
+        alignment: int = QtCore.Qt.AlignmentFlag.AlignLeft,
+        text: str = None
     ) -> QtWidgets.QLabel:
         """
         Create label with certain font color.
@@ -831,6 +887,8 @@ class TradingWidget(QtWidgets.QWidget):
         label: QtWidgets.QLabel = QtWidgets.QLabel()
         if color:
             label.setStyleSheet(f"color:{color}")
+        if text:
+            label.setText(text)
         label.setAlignment(alignment)
         return label
 
