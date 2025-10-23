@@ -3,6 +3,7 @@
 '''
 import numba
 import numpy as np
+from typing import Literal
 
 
 def make_front_back_dr(dr: list[float] | np.ndarray[np.float32|np.float64]):
@@ -52,12 +53,13 @@ def _get_back_dr_list_ori(
 _get_back_dr_list_nb = numba.njit(parallel=True)(_get_back_dr_list_ori)
 
 
-def make_timetags_back_dr(timetags, timestamp_dr, back_dr):
+def make_timetags_back_dr(timetags, timestamp_dr, back_dr, mode: Literal['ratio', 'diff']='ratio'):
     '''
     获得对应K线时间序列的后复权因子
     timetags        是K线或tick的时间戳
     timestamp_dr    是除权日的时间戳
     back_dr         是除权日对应的后复权因子
+    mode            是等比复权还是等差复权
     '''
     assert isinstance(timetags, np.ndarray)
     assert isinstance(timestamp_dr, np.ndarray)

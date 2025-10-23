@@ -4,7 +4,9 @@ General constant enums used in the trading platform.
 
 from enum import Enum
 
-from .locale import _
+# from .locale import _
+# 因为这里的值会被写入数据库，所以这里将其屏蔽翻译功能
+_ = lambda x: x
 
 
 class Direction(Enum):
@@ -149,13 +151,23 @@ class Currency(Enum):
 
 class Interval(Enum):
     """
-    Interval of bar data.
+    Interval of bar/tick data.
     """
     MINUTE = "1m"
+    MINUTE_5 = "5m"
     HOUR = "1h"
     DAILY = "d"
     WEEKLY = "w"
     TICK = "tick"
+
+
+class ExtraInterval(Enum):
+    """
+    额外时序数据
+    """
+    Dividend = 'Dividend'           # 复权数据
+    TradeDate = 'TradeDate'         # 交易日
+    MainContract = 'MainContract'   # 主连名称
 
 
 class Dividend(Enum):
@@ -165,6 +177,6 @@ class Dividend(Enum):
     NONE = _("除权")
     FRONT_RATIO = _("等比前复权")
     BACK_RATIO = _("等比后复权")
-    # 不支持下面两个
-    # FRONT = _("等差前复权")
-    # BACK = _("等差后复权")
+    # 待支持下面两个
+    FRONT_DIFF = _("等差前复权")
+    BACK_DIFF = _("等差后复权")

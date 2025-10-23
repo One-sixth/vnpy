@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Callable, Dict, Tuple, Union, Optional
 from decimal import Decimal
 from math import floor, ceil
-
+from dataclasses import is_dataclass, asdict
+import pandas as pd
 import numpy as np
 import talib
 
@@ -20,12 +21,10 @@ from .locale import _
 
 # 复权计算工具
 from ._dividend_tool import make_front_back_dr, make_timetags_back_dr
+# 统一历史获取工具
+# from ._history_get import query_history_uni
 
-
-if sys.version_info >= (3, 9):
-    from zoneinfo import ZoneInfo, available_timezones              # noqa
-else:
-    from backports.zoneinfo import ZoneInfo, available_timezones    # noqa
+from zoneinfo import ZoneInfo, available_timezones              # noqa
 
 
 log_formatter: logging.Formatter = logging.Formatter("[%(asctime)s] %(message)s")
@@ -46,56 +45,57 @@ def generate_vt_symbol(symbol: str, exchange: Exchange) -> str:
     return f"{symbol}.{exchange.value}"
 
 
-def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
-    """
-    Get path where trader is running in.
-    """
-    cwd: Path = Path.cwd()
-    temp_path: Path = cwd.joinpath(temp_name)
+# def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
+#     """
+#     Get path where trader is running in.
+#     """
+#     cwd: Path = Path.cwd()
+#     temp_path: Path = cwd.joinpath(temp_name)
+#
+#     # If .vntrader folder exists in current working directory,
+#     # then use it as trader running path.
+#     if temp_path.exists():
+#         return cwd, temp_path
+#
+#     # Otherwise use home path of system.
+#     home_path: Path = Path.home()
+#     temp_path: Path = home_path.joinpath(temp_name)
+#
+#     # Create .vntrader folder under home path if not exist.
+#     if not temp_path.exists():
+#         temp_path.mkdir()
+#
+#     return home_path, temp_path
 
-    # If .vntrader folder exists in current working directory,
-    # then use it as trader running path.
-    if temp_path.exists():
-        return cwd, temp_path
 
-    # Otherwise use home path of system.
-    home_path: Path = Path.home()
-    temp_path: Path = home_path.joinpath(temp_name)
-
-    # Create .vntrader folder under home path if not exist.
-    if not temp_path.exists():
-        temp_path.mkdir()
-
-    return home_path, temp_path
-
-
-# TRADER_DIR, TEMP_DIR = _get_trader_dir(".vntrader")
-# sys.path.append(str(TRADER_DIR))
-TRADER_DIR, TEMP_DIR = None, None
+_TRADER_DIR, _TEMP_DIR = None, None
 
 def set_trader_dir(trade_dir: str='.', temp_name: str='.vntrader'):
-    global TRADER_DIR, TEMP_DIR
-    TRADER_DIR = Path(trade_dir).absolute()
-    TEMP_DIR = TRADER_DIR.joinpath(temp_name)
-    if not TEMP_DIR.exists():
-        TEMP_DIR.mkdir()
+    global _TRADER_DIR, _TEMP_DIR
+    _TRADER_DIR = Path(trade_dir).absolute().resolve()
+    _TEMP_DIR = _TRADER_DIR.joinpath(temp_name)
+    if not _TEMP_DIR.exists():
+        _TEMP_DIR.mkdir()
 
 
-set_trader_dir()
+def get_trader_dir():
+    global _TRADER_DIR, _TEMP_DIR
+    assert _TEMP_DIR is not None, 'Error! Please set_trader_dir before.'
+    return _TRADER_DIR, _TEMP_DIR
 
 
 def get_file_path(filename: str) -> Path:
     """
     Get path for temp file with filename.
     """
-    return TEMP_DIR.joinpath(filename)
+    return _TEMP_DIR.joinpath(filename)
 
 
 def get_folder_path(folder_name: str) -> Path:
     """
     Get path for temp folder with folder name.
     """
-    folder_path: Path = TEMP_DIR.joinpath(folder_name)
+    folder_path: Path = _TEMP_DIR.joinpath(folder_name)
     if not folder_path.exists():
         folder_path.mkdir()
     return folder_path
@@ -1087,3 +1087,30 @@ def get_file_logger(filename: str) -> logging.Logger:
     handler.setFormatter(log_formatter)
     logger.addHandler(handler)  # each handler will be added only once.
     return logger
+
+
+# -----------------------------------------------------------------------------
+
+def data_list_to_df(data_list: list) -> pd.DataFrame:
+    '''
+    转换一组 dataclass 到 DataFrame
+    '''
+    if len(data_list) == 0:
+        return pd.DataFrame()
+
+    obj_type = type(data_list[0])
+    assert is_dataclass(obj_type)
+
+    fields = list(data_list[0].__dataclass_fields__)
+
+    store_dict = {}
+    for field in fields:
+        store_dict[field] = []
+
+    for item in data_list:
+        assert isinstance(item, obj_type)
+        for field in fields:
+            store_dict[field].append(item.__getattribute__(field))
+
+    df = pd.DataFrame(store_dict)
+    return df

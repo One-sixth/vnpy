@@ -6,7 +6,7 @@ numpy
 pandas
 matplotlib
 seaborn
-ta-lib
+ta-lib-everywhere
 deap
 pyzmq
 plotly

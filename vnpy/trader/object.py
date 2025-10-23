@@ -7,7 +7,7 @@ from datetime import datetime
 from logging import INFO
 from typing import Optional
 
-from .constant import Direction, Exchange, Interval, Offset, Status, Product, OptionType, OrderType, Dividend
+from .constant import Direction, Exchange, Interval, ExtraInterval, Offset, Status, Product, OptionType, OrderType, Dividend
 
 ACTIVE_STATUSES = set([Status.SUBMITTING, Status.NOTTRADED, Status.PARTTRADED])
 
@@ -115,6 +115,34 @@ class DividendData(BaseData):
     exchange: Exchange = None
     datetime: datetime = None
     ratio: float = 1.
+    diff: float = 0.
+
+    def __post_init__(self) -> None:
+        """"""
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+
+
+@dataclass
+class TradeDateData(BaseData):
+    """
+    TradeDate data stored in database.
+    """
+    exchange: Exchange = None
+    datetime: datetime = None
+
+    def __post_init__(self) -> None:
+        """"""
+        self.vt_symbol: str = f"{self.exchange.value}"
+
+
+@dataclass
+class MainContractData(BaseData):
+    """
+    主力合约.
+    """
+    symbol: str
+    exchange: Exchange
+    datetime: datetime
 
     def __post_init__(self) -> None:
         """"""
@@ -393,7 +421,7 @@ class HistoryRequest:
     exchange: Exchange
     start: datetime
     end: datetime = None
-    interval: Interval = None
+    interval: Interval | ExtraInterval = None
     dividend: Dividend = Dividend.NONE
 
     def __post_init__(self) -> None:

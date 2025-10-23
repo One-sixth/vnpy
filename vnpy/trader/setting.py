@@ -41,10 +41,15 @@ SETTINGS: Dict[str, Any] = {
 
 # Load global setting from json file.
 SETTING_FILENAME: str = "vt_setting.json"
-SETTINGS.update(load_json(SETTING_FILENAME))
 
 
 def get_settings(prefix: str = "") -> Dict[str, Any]:
     prefix_length: int = len(prefix)
     settings = {k[prefix_length:]: v for k, v in SETTINGS.items() if k.startswith(prefix)}
     return settings
+
+
+def load_settings(file=None):
+    if file is None:
+        file = SETTING_FILENAME
+    SETTINGS.update(load_json(file))

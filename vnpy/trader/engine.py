@@ -5,11 +5,11 @@ import os
 import traceback
 from abc import ABC
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.message import EmailMessage
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, Type, Dict, List, Optional
+from typing import Any, Type, Dict, List, Optional, Literal
 
 from vnpy.event import Event, EventEngine
 from .app import BaseApp
@@ -25,6 +25,7 @@ from .event import (
 )
 from .gateway import BaseGateway
 from .datafeed import BaseDatafeed, get_datafeed
+from .database import BaseDatabase, get_database
 from .object import (
     CancelRequest,
     LogData,
@@ -33,17 +34,20 @@ from .object import (
     QuoteRequest,
     SubscribeRequest,
     HistoryRequest,
-    OrderData,
     BarData,
     TickData,
+    DividendData,
+    OrderData,
     TradeData,
     PositionData,
     AccountData,
     ContractData,
     Exchange
 )
-from .setting import SETTINGS
-from .utility import get_folder_path, TRADER_DIR, set_trader_dir
+from .constant import Interval, ExtraInterval
+from .setting import SETTINGS, load_settings
+from .utility import get_folder_path, set_trader_dir, get_trader_dir
+from .history_uni_get import query_history_uni
 from .converter import OffsetConverter
 from .locale import _
 
@@ -66,8 +70,14 @@ class MainEngine:
         self.apps: Dict[str, BaseApp] = {}
         self.exchanges: List[Exchange] = []
 
+        # ----------------------------------------------------------
+        # load setting and setting work dir
         set_trader_dir(trader_dir, temp_dir)
+        TRADER_DIR, _ = get_trader_dir()
         os.chdir(TRADER_DIR)    # Change working directory
+        load_settings()
+        # ----------------------------------------------------------
+
         self.init_engines()     # Initialize function engines
 
     def add_engine(self, engine_class: Any) -> "BaseEngine":
@@ -228,6 +238,19 @@ class MainEngine:
             return gateway.query_history(req)
         else:
             return None
+
+    def query_history_uni(
+            self,
+            req: HistoryRequest,
+            cut: datetime | timedelta | Literal['database', 'datafeed', 'auto']=None
+    ) -> list:
+        """
+        请求自定义数据，其中部分数据可以从数据库中获取。
+        按时点分开获取
+        type_: 可以是 datetime 代表以此时点分割，timedelta 代表在 end 前间隔时间作为时点来分割，字符串 database 代表全部使用数据库里的，datafeed 代表全部使用在线的
+        注意，分割时点后，都是用 datafeed 的，分割时点前，都是用 database 的，这里会认为 datafeed的数据会比database的更新
+        """
+        return query_history_uni(req, cut)
 
     def close(self) -> None:
         """

@@ -3,7 +3,8 @@ from types import ModuleType
 from typing import Optional, List, Callable
 from importlib import import_module
 
-from .object import HistoryRequest, TickData, BarData, DividendData
+from .constant import Interval, ExtraInterval
+from .object import HistoryRequest, TickData, BarData, DividendData, TradeDateData
 from .setting import SETTINGS
 from .locale import _
 
@@ -36,6 +37,24 @@ class BaseDatafeed(ABC):
         Query history dividend data.
         """
         output(_("查询除权数据失败：没有正确配置数据服务"))
+
+    def query_tradedate_history(self, req: HistoryRequest, output: Callable = print) -> Optional[List[TradeDateData]]:
+        """
+        Query history tradedate data.
+        """
+        output(_("查询交易日数据失败：没有正确配置数据服务"))
+
+    def query_history_uni(self, req: HistoryRequest, output: Callable = print):
+        if req.interval == Interval.TICK:
+            return self.query_tick_history(req, output)
+        elif req.interval in [Interval.MINUTE, Interval.MINUTE_5, Interval.HOUR, Interval.DAILY, Interval.WEEKLY]:
+            return self.query_bar_history(req, output)
+        elif req.interval == ExtraInterval.Dividend:
+            return self.query_dividend_history(req, output)
+        elif req.interval == ExtraInterval.TradeDate:
+            return self.query_tradedate_history(req, output)
+        else:
+            raise AssertionError(f'query_history_uni 不支持请求的类型，{req.interval}')
 
     def close(self):
         '''
