@@ -28,12 +28,16 @@ format: str = (
 )
 
 
+# Log level
 level: int = SETTINGS["log.level"]
 
 
 def init_logger():
     global level
     # 初始化日志记录器
+
+    # Add default gateway
+    logger.configure(extra={"gateway_name": "Logger"})
 
     # Log level
     level = SETTINGS["log.level"]
