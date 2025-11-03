@@ -172,7 +172,7 @@ class MainEngine:
         email_engine: EmailEngine = self.add_engine(EmailEngine)
         self.send_email: Callable[[str, str, str | None], None] = email_engine.send_email
 
-    def write_log(self, msg: str, source: str = "") -> None:
+    def write_log(self, msg: str, source: str = "MainEngine") -> None:
         """
         Put log event with specific message.
         """
@@ -231,6 +231,8 @@ class MainEngine:
         """
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
         if gateway:
+            self.write_log(_("连接登录 -> {}").format(gateway_name))
+
             gateway.connect(setting)
 
     def subscribe(self, req: SubscribeRequest, gateway_name: str) -> None:
@@ -239,6 +241,8 @@ class MainEngine:
         """
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
         if gateway:
+            self.write_log(_("订阅行情 -> {}：{}").format(gateway_name, req))
+
             gateway.subscribe(req)
 
     def send_order(self, req: OrderRequest, gateway_name: str) -> str:
@@ -247,6 +251,8 @@ class MainEngine:
         """
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
         if gateway:
+            self.write_log(_("委托下单 -> {}：{}").format(gateway_name, req))
+
             return gateway.send_order(req)
         else:
             return ""
@@ -257,6 +263,8 @@ class MainEngine:
         """
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
         if gateway:
+            self.write_log(_("委托撤单 -> {}：{}").format(gateway_name, req))
+
             gateway.cancel_order(req)
 
     def send_quote(self, req: QuoteRequest, gateway_name: str) -> str:
@@ -265,6 +273,8 @@ class MainEngine:
         """
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
         if gateway:
+            self.write_log(_("报价下单 -> {}：{}").format(gateway_name, req))
+
             return gateway.send_quote(req)
         else:
             return ""
@@ -275,6 +285,8 @@ class MainEngine:
         """
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
         if gateway:
+            self.write_log(_("报价撤单 -> {}：{}").format(gateway_name, req))
+
             gateway.cancel_quote(req)
 
     def query_history(self, req: HistoryRequest, gateway_name: str) -> list[BarData]:
@@ -283,6 +295,8 @@ class MainEngine:
         """
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
         if gateway:
+            self.write_log(_("查询K线 -> {}：{}").format(gateway_name, req))
+
             return gateway.query_history(req)
         else:
             return []
@@ -632,7 +646,7 @@ class EmailEngine(BaseEngine):
                         smtp.close()
                 except Exception:
                     log_msg: str = _("邮件发送失败: {}").format(traceback.format_exc())
-                    self.main_engine.write_log(log_msg, "EMAIL")
+                    self.main_engine.write_log(log_msg, "EmailEngine")
             except Empty:
                 pass
 
