@@ -4,6 +4,7 @@ General utility functions.
 
 import json
 import sys
+import shutil
 from datetime import datetime, time
 from pathlib import Path
 from collections.abc import Callable
@@ -20,7 +21,7 @@ from .constant import Exchange, Interval
 from .locale import _
 
 # 复权计算工具
-from ._dividend_tool import make_front_back_dr, make_timetags_back_dr
+# from ._dividend_tool import make_front_back_dr, make_timetags_apply_dr
 # 统一历史获取工具
 # from ._history_get import query_history_uni
 
@@ -121,11 +122,17 @@ def load_json(filename: str) -> dict:
         return {}
 
 
-def save_json(filename: str, data: dict) -> None:
+def save_json(filename: str, data: dict, safe=True) -> None:
     """
     Save data into json file in temp path.
     """
-    filepath: Path = get_file_path(filename)
+    if safe:
+        filepath: Path = get_file_path(filename + '.tmp')
+        real_filepath: Path = get_file_path(filename)
+    else:
+        filepath: Path = get_file_path(filename)
+        real_filepath: Path = None
+
     with open(filepath, mode="w+", encoding="UTF-8") as f:
         json.dump(
             data,
@@ -133,6 +140,9 @@ def save_json(filename: str, data: dict) -> None:
             indent=4,
             ensure_ascii=False
         )
+
+    if safe:
+        shutil.move(filepath, real_filepath)
 
 
 def round_to(value: float, target: float) -> float:

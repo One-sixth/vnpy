@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+from types import ModuleType
+from importlib import import_module
+from .locale import _
 
 from vnpy.event import Event, EventEngine
 from .event import (
@@ -270,3 +273,23 @@ class BaseGateway(ABC):
         Return default setting dict.
         """
         return self.default_setting
+
+
+def get_gateway_class(gateway_class_name: str) -> type[BaseGateway]:
+    """
+    Get gateway class by name.
+    name 示例 ctp.CtpGateway
+    """
+    # from vnpy_ctp import CtpGateway
+    assert isinstance(gateway_class_name, str)
+    module_name, class_name = gateway_class_name.split(".")
+    try:
+        # 加入新的 datafeed
+        module: ModuleType = import_module(module_name)
+        cls = getattr(module, class_name)
+
+    except ModuleNotFoundError:
+        cls = None
+        print(_("加载Gateway模块 {gateway_class_name} 失败").format(gateway_class_name))
+
+    return cls

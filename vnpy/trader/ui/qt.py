@@ -24,7 +24,17 @@ def create_qapp(app_name: str = "VeighNa Trader") -> QtWidgets.QApplication:
     """
     # Set up dark stylesheet
     qapp: QtWidgets.QApplication = QtWidgets.QApplication(sys.argv)
-    qapp.setStyleSheet(qdarkstyle.load_stylesheet(qt_api="pyside6"))
+    style_data = qdarkstyle.load_stylesheet(qt_api="pyside6")
+    # 对样式表打补丁，原始情况下，QTextEdit区域与外部区域很难区分
+    style_data += '''\n
+    QTextEdit {
+      background-color: #1e2a36;
+    }
+    QPlainTextEdit {
+      background-color: #1e2a36;
+    }
+    '''
+    qapp.setStyleSheet(style_data)
 
     # Set up font
     font: QtGui.QFont = QtGui.QFont(SETTINGS["font.family"], SETTINGS["font.size"])

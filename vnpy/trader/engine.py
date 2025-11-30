@@ -22,7 +22,7 @@ from .event import (
     EVENT_LOG,
     EVENT_QUOTE
 )
-from .gateway import BaseGateway
+from .gateway import BaseGateway, get_gateway_class
 from .datafeed import BaseDatafeed, get_datafeed
 from .database import BaseDatabase, get_database
 from .object import (
@@ -114,13 +114,20 @@ class MainEngine:
         self.engines[engine.engine_name] = engine
         return engine
 
-    def add_gateway(self, gateway_class: type[BaseGateway], gateway_name: str = "") -> BaseGateway:
+    def add_gateway(self, gateway_class: type[BaseGateway]|str, gateway_name: str = "") -> BaseGateway:
         """
         Add gateway.
         """
+        if isinstance(gateway_class, str):
+            gateway_class = get_gateway_class(gateway_class)
+
         # Use default name if gateway_name not passed
         if not gateway_name:
             gateway_name = gateway_class.default_name
+
+        if gateway_name in self.gateways:
+            self.remove_gateway(gateway_name)
+            self.write_log(_("Gateway {} 已被替换").format(gateway_name))
 
         gateway: BaseGateway = gateway_class(self.event_engine, gateway_name)
         self.gateways[gateway_name] = gateway
@@ -313,6 +320,12 @@ class MainEngine:
         注意，分割时点后，都是用 datafeed 的，分割时点前，都是用 database 的，这里会认为 datafeed的数据会比database的更新
         """
         return query_history_uni(req, cut)
+
+    def remove_gateway(self, gateway_name: str):
+        gateway: BaseGateway | None = self.gateways.get(gateway_name, None)
+        if gateway is not None:
+            gateway.close()
+            del self.gateways[gateway_name]
 
     def close(self) -> None:
         """

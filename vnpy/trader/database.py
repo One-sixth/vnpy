@@ -4,6 +4,9 @@ from types import ModuleType
 from dataclasses import dataclass
 from importlib import import_module
 from tzlocal import get_localzone_name
+import traceback
+import numpy as np
+from .dividend_tool import make_front_back_dr, make_timetags_apply_dr
 from .constant import Interval, Exchange, Dividend, ExtraInterval
 from .object import BarData, TickData, DividendData, TradeDateData, MainContractData, HistoryRequest
 from .setting import SETTINGS
@@ -23,8 +26,10 @@ def convert_tz(dt: datetime) -> datetime:
     return dt.replace(tzinfo=None)
 
 
-def to_dbtz(t: datetime, clear_tzinfo=True) -> datetime:
+def to_dbtz(t: datetime|None, clear_tzinfo=True) -> datetime|None:
     # 从 本地时区 转换到 数据库时区
+    if t is None:
+        return t
     if t.tzinfo is None:
         t = t.replace(tzinfo=LOCAL_TZ)
     t = t.astimezone(DB_TZ)
@@ -33,8 +38,10 @@ def to_dbtz(t: datetime, clear_tzinfo=True) -> datetime:
     return t
 
 
-def from_dbtz(t: datetime, clear_tzinfo=False) -> datetime:
+def from_dbtz(t: datetime|None, clear_tzinfo=False) -> datetime|None:
     # 从 数据库时区 转换到 本地时区
+    if t is None:
+        return t
     if t.tzinfo is None:
         t = t.replace(tzinfo=DB_TZ)
     t = t.astimezone(LOCAL_TZ)
@@ -364,6 +371,70 @@ class BaseDatabase(ABC):
 
     # -----------------------------------------------------------------------
 
+    def _apply_dividend(self, type: str, data_list: list[TickData|BarData], dividend_data: list[DividendData], dividend: Dividend):
+        '''
+        对输入的 data 进行复权
+        '''
+        # assert dividend in [Dividend.FRONT_RATIO, Dividend.BACK_RATIO, Dividend.FRONT_DIFF, Dividend.BACK_DIFF]
+        assert dividend in [Dividend.FRONT_RATIO, Dividend.BACK_RATIO]
+        assert type in ['tick', 'bar']
+
+        if len(dividend_data) == 0 or len(data_list) == 0:
+            return
+
+        dr_ratio = np.zeros(len(dividend_data), np.float64)
+        dr_time = np.zeros(len(dividend_data), np.int64)
+        for i, v in enumerate(dividend_data):
+            dr_time[i] = v.datetime.timestamp()*1000
+            dr_ratio[i] = v.ratio
+
+        front_dr, back_dr = make_front_back_dr(dr_ratio)
+
+        data_time = np.zeros(len(data_list), np.int64)
+        for i, v in enumerate(data_list):
+            data_time[i] = v.datetime.timestamp()*1000
+
+        if dividend == Dividend.FRONT_RATIO:
+            apply_dr = make_timetags_apply_dr(data_time, dr_time, front_dr, 'front', 'ratio')
+        elif dividend == Dividend.BACK_RATIO:
+            apply_dr = make_timetags_apply_dr(data_time, dr_time, back_dr, 'back', 'ratio')
+        else:
+            raise AssertionError(f'错误！输入不支持的复权类型{dividend}')
+
+        if type == 'tick':
+            col_names = ("last_price", "limit_up", "limit_down",
+                "open_price", "high_price", "low_price", "pre_close",
+                "bid_price_1", "bid_price_2", "bid_price_3", "bid_price_4", "bid_price_5",
+                "ask_price_1", "ask_price_2", "ask_price_3", "ask_price_4", "ask_price_5",
+                "bid_volume_1", "bid_volume_2", "bid_volume_3", "bid_volume_4", "bid_volume_5",
+                "ask_volume_1", "ask_volume_2", "ask_volume_3", "ask_volume_4", "ask_volume_5"
+            )
+        elif type == 'bar':
+            col_names = ("open_price", "high_price", "low_price", "close_price")
+        else:
+            raise AssertionError(f'错误！输入不支持的类型{type}')
+
+        for i, d in enumerate(data_list):
+            d: TickData|BarData
+            r = apply_dr[i]
+            for name in col_names:
+                setattr(d, name, getattr(d, name) * r)
+
+    def apply_dividend(self, type: str, data_list: list[TickData|BarData], symbol: str, exchange: Exchange, dividend: Dividend):
+        '''
+        复权数据，注意会修改输入的 data_list 的数据
+        '''
+        if len(data_list) == 0 or Dividend.NONE == dividend:
+            return
+
+        dividend_data = self.load_dividend_data(symbol, exchange, datetime(1970, 1, 1), datetime(2200, 1, 1))
+        if len(dividend_data) == 0:
+            return
+
+        self._apply_dividend(type, data_list, dividend_data, dividend)
+
+    # -----------------------------------------------------------------------
+
 
 database: BaseDatabase | None = None
 
@@ -382,10 +453,14 @@ def get_database() -> BaseDatabase:
     # Try to import database module
     try:
         module: ModuleType = import_module(module_name)
-    except ModuleNotFoundError:
-        print(_("找不到数据库驱动{}，使用默认的SQLite数据库").format(module_name))
+    except ModuleNotFoundError as e:
+        print(_("无法导入数据库驱动{}，因为{}\n将使用默认的SQLite数据库").format(module_name, str(e)+f"\n{traceback.format_exc()}"))
         module = import_module("vnpy_sqlite")
 
     # Create database object from module
-    database = module.Database()
+    try:
+        database = module.Database()
+    except Exception as e:
+        print(_("数据库初始化失败").format(module_name), str(e))
+        database = None
     return database     # type: ignore

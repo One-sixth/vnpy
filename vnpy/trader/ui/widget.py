@@ -985,7 +985,12 @@ class TradingWidget(QtWidgets.QScrollArea):
 
             # Update gateway combo box.
             ix: int = self.gateway_combo.findText(gateway_name)
-            self.gateway_combo.setCurrentIndex(ix)
+            if ix != -1:
+                self.gateway_combo.setCurrentIndex(ix)
+            else:
+                # gateway_combo 缺少，需要更新
+                self.gateway_combo.addItem(gateway_name)
+                self.gateway_combo.setCurrentText(gateway_name)
 
             # Update price digits
             self.price_digits = get_digits(contract.pricetick)

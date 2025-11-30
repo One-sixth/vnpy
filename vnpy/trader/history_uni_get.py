@@ -1,3 +1,7 @@
+'''
+可以通过database和datafeed联合获取数据
+'''
+
 from .constant import Interval, ExtraInterval, Exchange
 from .object import HistoryRequest
 from datetime import datetime, timedelta
