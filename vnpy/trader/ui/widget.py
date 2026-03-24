@@ -273,9 +273,21 @@ class BaseMonitor(QtWidgets.QTableWidget):
         self.setHorizontalHeaderLabels(labels)
 
         self.verticalHeader().setVisible(False)
+        # self.horizontalHeader().setStretchLastSection(True)         # 设定自动拉伸最右边的格子
+        # self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.ResizeToContents) # 内容默认是填满
+        self.horizontalHeader().setMinimumSectionSize(10)           # 最小宽度为10像素
+        # self.horizontalHeader().setSortIndicatorClearable(True)     # 允许取消排序
+        # self.horizontalHeader().doubleClicked.connect(self.clear_sorting)
         self.setEditTriggers(self.EditTrigger.NoEditTriggers)
         self.setAlternatingRowColors(True)
         self.setSortingEnabled(self.sorting)
+
+    # def clear_sorting(self, pos: QtCore.QModelIndex) -> None:
+    #     """
+    #     Clear sorting indicator.
+    #     """
+    #     # pos.column()
+    #     self.horizontalHeader().setSortIndicatorClearable(True)
 
     def init_menu(self) -> None:
         """
@@ -427,6 +439,8 @@ class TickMonitor(BaseMonitor):
         "name": {"display": _("名称"), "cell": BaseCell, "update": True},
         "last_price": {"display": _("最新价"), "cell": BaseCell, "update": True},
         "volume": {"display": _("成交量"), "cell": BaseCell, "update": True},
+        "turnover": {"display": _("成交额"), "cell": BaseCell, "update": True},
+        "open_interest": {"display": _("持仓量"), "cell": BaseCell, "update": True},
         "open_price": {"display": _("开盘价"), "cell": BaseCell, "update": True},
         "high_price": {"display": _("最高价"), "cell": BaseCell, "update": True},
         "low_price": {"display": _("最低价"), "cell": BaseCell, "update": True},
@@ -434,6 +448,8 @@ class TickMonitor(BaseMonitor):
         "bid_volume_1": {"display": _("买1量"), "cell": BidCell, "update": True},
         "ask_price_1": {"display": _("卖1价"), "cell": AskCell, "update": True},
         "ask_volume_1": {"display": _("卖1量"), "cell": AskCell, "update": True},
+        "limit_up": {"display": _("涨停价"), "cell": BaseCell, "update": True},
+        "limit_down": {"display": _("跌停价"), "cell": BaseCell, "update": True},
         "datetime": {"display": _("时间"), "cell": TimeCell, "update": True},
         "gateway_name": {"display": _("接口"), "cell": BaseCell, "update": False},
     }
@@ -1148,6 +1164,11 @@ class ContractManager(QtWidgets.QWidget):
         "size": _("合约乘数"),
         "pricetick": _("价格跳动"),
         "min_volume": _("最小委托量"),
+        "max_volume": _("最大委托量"),
+        "long_margin_ratio": _("做多保证金率"),
+        "short_margin_ratio": _("做空保证金率"),
+        "listed_date": _("上市日"),
+        "expire_date": _("退市日"),
         "option_portfolio": _("期权产品"),
         "option_expiry": _("期权到期日"),
         "option_strike": _("期权行权价"),

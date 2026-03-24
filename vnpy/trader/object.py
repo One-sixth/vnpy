@@ -217,6 +217,13 @@ class TradeData(BaseData):
         self.vt_orderid: str = f"{self.gateway_name}.{self.orderid}"
         self.vt_tradeid: str = f"{self.gateway_name}.{self.tradeid}"
 
+    def __str__(self):
+        s = (
+            "成交 合约:{} 成交号:{} 委托号:{} 价格:{} 量:{} 方向:{} 开平:{} 网关:{}"
+            .format(self.vt_symbol, self.tradeid, self.orderid, self.price, self.volume, self.direction.value, self.offset.value, self.gateway_name)
+        )
+        return s
+
 
 @dataclass
 class PositionData(BaseData):
@@ -299,6 +306,12 @@ class ContractData(BaseData):
     option_portfolio: str | None = None
     option_index: str | None = None          # for identifying options with same strike price
 
+    long_margin_ratio: float | None =  None     # 做多保证金率
+    short_margin_ratio: float | None =  None    # 做空保证金率
+
+    listed_date: Datetime | None =  None        # 上市日
+    expire_date: Datetime | None =  None        # 退市日
+
     def __post_init__(self) -> None:
         """"""
         self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
@@ -359,6 +372,10 @@ class SubscribeRequest:
         """"""
         self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
+    def __str__(self):
+        s = "订阅 合约:{}".format(self.vt_symbol)
+        return s
+
 
 @dataclass
 class OrderRequest:
@@ -397,6 +414,13 @@ class OrderRequest:
         )
         return order
 
+    def __str__(self):
+        s = (
+            "委托 合约:{} 量:{} 价:{} 方向:{} 开平:{} 类型:{} 引用:{}"
+            .format(self.vt_symbol, self.volume, self.price, self.direction.value, self.offset.value, self.type.value, self.reference)
+        )
+        return s
+
 
 @dataclass
 class CancelRequest:
@@ -411,6 +435,13 @@ class CancelRequest:
     def __post_init__(self) -> None:
         """"""
         self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+
+    def __str__(self):
+        s = (
+            "撤单 合约:{} 委托号:{}"
+            .format(self.vt_symbol, self.orderid)
+        )
+        return s
 
 
 @dataclass
@@ -469,3 +500,10 @@ class QuoteRequest:
             gateway_name=gateway_name,
         )
         return quote
+
+    def __str__(self):
+        s = (
+            "报价 合约:{} bid_price:{} bid_volume:{} bid_offset:{} ask_price:{} ask_volume:{} ask_offset:{}"
+            .format(self.vt_symbol, self.bid_price, self.bid_volume, self.bid_offset.value, self.ask_price, self.ask_volume, self.ask_offset.value)
+        )
+        return s
